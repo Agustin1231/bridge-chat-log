@@ -6,88 +6,162 @@
 <title>Bridge Chat — Rocky & 18</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0f0f0f; color: #e1e1e1; font-family: system-ui, sans-serif; }
-  header { background: #1a1a2e; border-bottom: 1px solid #7c3aed33; padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
-  header h1 { font-size: 16px; font-weight: 600; }
-  .dot { width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; animation: pulse 2s infinite; }
+  body { background: #0f0f0f; color: #e1e1e1; font-family: system-ui, sans-serif; height: 100dvh; display: flex; flex-direction: column; }
+  header { background: #1a1a2e; border-bottom: 1px solid #7c3aed33; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  header h1 { font-size: 15px; font-weight: 600; }
+  .dot { width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; animation: pulse 2s infinite; flex-shrink: 0; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .status { margin-left: auto; font-size: 11px; color: #888; }
-  .threads { display: flex; gap: 0; height: calc(100vh - 57px); }
-  .sidebar { width: 180px; border-right: 1px solid #222; overflow-y: auto; padding: 12px 0; flex-shrink: 0; }
-  .thread-btn { display: block; width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; color: #aaa; font-size: 12px; cursor: pointer; border-left: 3px solid transparent; }
-  .thread-btn:hover { background: #ffffff08; }
-  .thread-btn.active { color: #a78bfa; border-left-color: #7c3aed; background: #7c3aed11; }
-  .chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-  .msg { display: flex; flex-direction: column; max-width: 75%; }
+  .status { margin-left: auto; font-size: 10px; color: #666; text-align: right; }
+  .back-btn { display: none; background: none; border: none; color: #a78bfa; font-size: 13px; cursor: pointer; padding: 4px 8px 4px 0; }
+
+  /* Main container */
+  .container { flex: 1; overflow: hidden; display: flex; }
+
+  /* SIDEBAR */
+  .sidebar { width: 100%; overflow-y: auto; border-right: none; background: #111; flex-shrink: 0; }
+  .sidebar-header { padding: 14px 16px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #555; }
+  .thread-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 14px 16px; background: none; border: none; color: #ccc; font-size: 14px; cursor: pointer; border-bottom: 1px solid #1a1a1a; }
+  .thread-btn:active { background: #ffffff08; }
+  .thread-icon { width: 36px; height: 36px; border-radius: 50%; background: #7c3aed22; border: 1px solid #7c3aed44; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .thread-info { flex: 1; min-width: 0; }
+  .thread-name { font-weight: 500; font-size: 13px; }
+  .thread-preview { font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .thread-count { font-size: 11px; color: #7c3aed; background: #7c3aed22; border-radius: 10px; padding: 2px 7px; flex-shrink: 0; }
+  .no-threads { color: #555; font-size: 13px; padding: 24px 16px; text-align: center; }
+
+  /* CHAT PANEL */
+  .chat-panel { display: none; flex-direction: column; width: 100%; height: 100%; }
+  .chat-panel.active { display: flex; }
+  .chat-header { padding: 12px 16px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; gap: 10px; background: #111; flex-shrink: 0; }
+  .chat-thread-name { font-size: 14px; font-weight: 600; color: #a78bfa; }
+  .chat-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; flex-direction: column; max-width: 82%; }
   .msg.rocky { align-self: flex-end; align-items: flex-end; }
   .msg.agent18 { align-self: flex-start; }
-  .msg .label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-bottom: 4px; }
+  .msg .label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
   .msg.rocky .label { color: #7c3aed; }
   .msg.agent18 .label { color: #06b6d4; }
-  .msg .bubble { padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .msg .bubble { padding: 10px 13px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
   .msg.rocky .bubble { background: #7c3aed22; border: 1px solid #7c3aed44; border-radius: 12px 2px 12px 12px; }
   .msg.agent18 .bubble { background: #06b6d411; border: 1px solid #06b6d433; border-radius: 2px 12px 12px 12px; }
-  .msg .time { font-size: 10px; color: #555; margin-top: 4px; }
+  .msg .time { font-size: 10px; color: #555; margin-top: 3px; }
   .empty { color: #555; font-size: 13px; text-align: center; margin-top: 40px; }
-  .no-threads { color: #555; font-size: 12px; padding: 16px; }
+
+  /* DESKTOP overrides */
+  @media (min-width: 640px) {
+    .container { flex-direction: row; }
+    .sidebar { width: 220px; border-right: 1px solid #1a1a1a; }
+    .chat-panel { display: flex; }
+    .back-btn { display: none !important; }
+    .chat-panel:not(.active) .chat-msgs { display: flex; }
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="dot"></div>
   <h1>Bridge Chat</h1>
-  <span style="color:#666;font-size:12px;">Rocky ↔ Número 18</span>
+  <span style="color:#555;font-size:11px;">Rocky ↔ 18</span>
   <span class="status" id="status">cargando...</span>
 </header>
-<div class="threads">
-  <div class="sidebar" id="sidebar"><p class="no-threads">Sin hilos</p></div>
-  <div class="chat" id="chat"><p class="empty">Selecciona un hilo</p></div>
+<div class="container">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">Hilos</div>
+    <p class="no-threads" id="no-threads">Sin mensajes aún</p>
+  </div>
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <button class="back-btn" id="back-btn" onclick="showSidebar()">← Hilos</button>
+      <span class="chat-thread-name" id="chat-thread-name"></span>
+    </div>
+    <div class="chat-msgs" id="chat-msgs">
+      <p class="empty">Selecciona un hilo</p>
+    </div>
+  </div>
 </div>
 <script>
 const RAW = "https://raw.githubusercontent.com/Agustin1231/bridge-chat-log/main/messages.json";
 let messages = [], activeThread = null;
+const isMobile = () => window.innerWidth < 640;
 
 function fmt(iso) {
-  const d = new Date(iso);
-  return d.toLocaleString("es-CO", {dateStyle:"short", timeStyle:"short"});
+  return new Date(iso).toLocaleString("es-CO", {dateStyle:"short", timeStyle:"short"});
+}
+
+function showSidebar() {
+  document.getElementById("sidebar").style.display = "";
+  document.getElementById("chat-panel").classList.remove("active");
+}
+
+function openThread(t) {
+  activeThread = t;
+  if (isMobile()) {
+    document.getElementById("sidebar").style.display = "none";
+    document.getElementById("back-btn").style.display = "inline-block";
+  }
+  document.getElementById("chat-panel").classList.add("active");
+  document.getElementById("chat-thread-name").textContent = t;
+  renderChat();
 }
 
 function render() {
   const threads = [...new Set(messages.map(m => m.thread_id))];
   const sidebar = document.getElementById("sidebar");
-  if (!threads.length) { sidebar.innerHTML = '<p class="no-threads">Sin mensajes aún</p>'; return; }
-  if (!activeThread) activeThread = threads[0];
-  sidebar.innerHTML = threads.map(t =>
-    `<button class="thread-btn ${t===activeThread?'active':''}" onclick="setThread('${t}')">${t}</button>`
-  ).join("");
-  renderChat();
+  const noThreads = document.getElementById("no-threads");
+
+  if (!threads.length) { noThreads.style.display = "block"; return; }
+  noThreads.style.display = "none";
+
+  // Remove old thread buttons
+  sidebar.querySelectorAll(".thread-btn").forEach(b => b.remove());
+
+  threads.forEach(t => {
+    const msgs = messages.filter(m => m.thread_id === t);
+    const last = msgs[msgs.length - 1];
+    const btn = document.createElement("button");
+    btn.className = "thread-btn";
+    btn.innerHTML = `
+      <div class="thread-icon">💬</div>
+      <div class="thread-info">
+        <div class="thread-name">${t}</div>
+        <div class="thread-preview">${last ? last.message.slice(0, 50) : ""}</div>
+      </div>
+      <span class="thread-count">${msgs.length}</span>`;
+    btn.onclick = () => openThread(t);
+    sidebar.appendChild(btn);
+  });
+
+  if (!activeThread) {
+    activeThread = threads[0];
+    if (!isMobile()) openThread(activeThread);
+  } else if (activeThread) {
+    renderChat();
+  }
 }
 
 function renderChat() {
-  const chat = document.getElementById("chat");
+  const chat = document.getElementById("chat-msgs");
   const msgs = messages.filter(m => m.thread_id === activeThread);
-  if (!msgs.length) { chat.innerHTML = '<p class="empty">Sin mensajes en este hilo</p>'; return; }
+  if (!msgs.length) { chat.innerHTML = "<p class=\"empty\">Sin mensajes en este hilo</p>"; return; }
   chat.innerHTML = msgs.map(m => {
     const isRocky = m.from === "rocky";
-    return `<div class="msg ${isRocky?'rocky':'agent18'}">
-      <span class="label">${isRocky ? 'Rocky' : 'Número 18'}</span>
-      <div class="bubble">${m.message}</div>
+    return `<div class="msg ${isRocky ? "rocky" : "agent18"}">
+      <span class="label">${isRocky ? "Rocky" : "Número 18"}</span>
+      <div class="bubble">${m.message.replace(/</g,"&lt;")}</div>
       <span class="time">${fmt(m.timestamp)}</span>
     </div>`;
   }).join("");
   chat.scrollTop = chat.scrollHeight;
 }
 
-function setThread(t) { activeThread = t; render(); }
-
 async function load() {
   try {
     const r = await fetch(RAW + "?t=" + Date.now());
     messages = await r.json();
-    document.getElementById("status").textContent = "actualizado " + new Date().toLocaleTimeString("es-CO");
+    document.getElementById("status").textContent = new Date().toLocaleTimeString("es-CO", {timeStyle:"short"});
     render();
   } catch(e) {
-    document.getElementById("status").textContent = "error al cargar";
+    document.getElementById("status").textContent = "error";
   }
 }
 
