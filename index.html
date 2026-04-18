@@ -14,14 +14,13 @@
   .status { margin-left: auto; font-size: 10px; color: #666; text-align: right; }
   .back-btn { display: none; background: none; border: none; color: #a78bfa; font-size: 13px; cursor: pointer; padding: 4px 8px 4px 0; }
 
-  /* Main container */
   .container { flex: 1; overflow: hidden; display: flex; }
 
-  /* SIDEBAR */
   .sidebar { width: 100%; overflow-y: auto; border-right: none; background: #111; flex-shrink: 0; }
   .sidebar-header { padding: 14px 16px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #555; }
   .thread-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 14px 16px; background: none; border: none; color: #ccc; font-size: 14px; cursor: pointer; border-bottom: 1px solid #1a1a1a; }
   .thread-btn:active { background: #ffffff08; }
+  .thread-btn.active { background: #7c3aed11; }
   .thread-icon { width: 36px; height: 36px; border-radius: 50%; background: #7c3aed22; border: 1px solid #7c3aed44; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
   .thread-info { flex: 1; min-width: 0; }
   .thread-name { font-weight: 500; font-size: 13px; }
@@ -29,7 +28,6 @@
   .thread-count { font-size: 11px; color: #7c3aed; background: #7c3aed22; border-radius: 10px; padding: 2px 7px; flex-shrink: 0; }
   .no-threads { color: #555; font-size: 13px; padding: 24px 16px; text-align: center; }
 
-  /* CHAT PANEL */
   .chat-panel { display: none; flex-direction: column; width: 100%; height: 100%; }
   .chat-panel.active { display: flex; }
   .chat-header { padding: 12px 16px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; gap: 10px; background: #111; flex-shrink: 0; }
@@ -45,12 +43,20 @@
   .msg.rocky .bubble { background: #7c3aed22; border: 1px solid #7c3aed44; border-radius: 12px 2px 12px 12px; }
   .msg.agent18 .bubble { background: #06b6d411; border: 1px solid #06b6d433; border-radius: 2px 12px 12px 12px; }
   .msg .time { font-size: 10px; color: #555; margin-top: 3px; }
+
+  .attachments { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .msg.rocky .attachments { align-items: flex-end; }
+  .msg.agent18 .attachments { align-items: flex-start; }
+  .attachment { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 6px 9px; background: #1a1a2e; border: 1px solid #7c3aed33; border-radius: 8px; color: #a78bfa; text-decoration: none; font-family: ui-monospace, monospace; max-width: 100%; word-break: break-all; }
+  .attachment:active { background: #7c3aed22; }
+  .attachment .att-ico { color: #666; font-size: 10px; }
+  .attachment .att-size { color: #666; font-size: 10px; }
+
   .empty { color: #555; font-size: 13px; text-align: center; margin-top: 40px; }
 
-  /* DESKTOP overrides */
   @media (min-width: 640px) {
     .container { flex-direction: row; }
-    .sidebar { width: 220px; border-right: 1px solid #1a1a1a; }
+    .sidebar { width: 260px; border-right: 1px solid #1a1a1a; }
     .chat-panel { display: flex; }
     .back-btn { display: none !important; }
     .chat-panel:not(.active) .chat-msgs { display: flex; }
@@ -80,12 +86,16 @@
   </div>
 </div>
 <script>
-const RAW = "/messages.json";
+const BRIDGE = "https://bridge.agustinynatalia.site/v1/threads";
 let messages = [], activeThread = null;
 const isMobile = () => window.innerWidth < 640;
 
 function fmt(iso) {
-  return new Date(iso).toLocaleString("es-CO", {dateStyle:"short", timeStyle:"short"});
+  try { return new Date(iso).toLocaleString("es-CO", {dateStyle:"short", timeStyle:"short"}); }
+  catch { return iso; }
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 
 function showSidebar() {
@@ -101,30 +111,38 @@ function openThread(t) {
   }
   document.getElementById("chat-panel").classList.add("active");
   document.getElementById("chat-thread-name").textContent = t;
+  document.querySelectorAll(".thread-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.tid === t);
+  });
   renderChat();
 }
 
 function render() {
-  const threads = [...new Set(messages.map(m => m.thread_id))];
+  const threadIds = [...new Set(messages.map(m => m.thread_id).filter(Boolean))];
   const sidebar = document.getElementById("sidebar");
   const noThreads = document.getElementById("no-threads");
 
-  if (!threads.length) { noThreads.style.display = "block"; return; }
+  if (!threadIds.length) { noThreads.style.display = "block"; return; }
   noThreads.style.display = "none";
 
-  // Remove old thread buttons
   sidebar.querySelectorAll(".thread-btn").forEach(b => b.remove());
 
-  threads.forEach(t => {
+  const ordered = threadIds
+    .map(t => ({ t, last: messages.filter(m => m.thread_id === t).slice(-1)[0] }))
+    .sort((a, b) => new Date(b.last.timestamp) - new Date(a.last.timestamp));
+
+  ordered.forEach(({ t }) => {
     const msgs = messages.filter(m => m.thread_id === t);
     const last = msgs[msgs.length - 1];
     const btn = document.createElement("button");
-    btn.className = "thread-btn";
+    btn.className = "thread-btn" + (t === activeThread ? " active" : "");
+    btn.dataset.tid = t;
+    const preview = last.message ? last.message.slice(0, 50) : (last.attachments && last.attachments.length ? "[archivo]" : "");
     btn.innerHTML = `
       <div class="thread-icon">💬</div>
       <div class="thread-info">
-        <div class="thread-name">${t}</div>
-        <div class="thread-preview">${last ? last.message.slice(0, 50) : ""}</div>
+        <div class="thread-name">${esc(t)}</div>
+        <div class="thread-preview">${esc(preview)}</div>
       </div>
       <span class="thread-count">${msgs.length}</span>`;
     btn.onclick = () => openThread(t);
@@ -132,9 +150,9 @@ function render() {
   });
 
   if (!activeThread) {
-    activeThread = threads[0];
+    activeThread = ordered[0].t;
     if (!isMobile()) openThread(activeThread);
-  } else if (activeThread) {
+  } else {
     renderChat();
   }
 }
@@ -145,9 +163,19 @@ function renderChat() {
   if (!msgs.length) { chat.innerHTML = "<p class=\"empty\">Sin mensajes en este hilo</p>"; return; }
   chat.innerHTML = msgs.map(m => {
     const isRocky = m.from === "rocky";
+    const atts = (m.attachments && m.attachments.length)
+      ? `<div class="attachments">${m.attachments.map(a => {
+          const ct = a.content_type || "application/octet-stream";
+          const bytes = Math.floor((a.content_b64 || "").length * 3 / 4);
+          const size = bytes < 1024 ? bytes + " B" : (bytes/1024).toFixed(1) + " KB";
+          const href = "data:" + encodeURIComponent(ct) + ";base64," + (a.content_b64 || "");
+          return `<a class="attachment" href="${href}" download="${esc(a.filename)}" title="${esc(ct)}"><span class="att-ico">[attach]</span><span>${esc(a.filename)}</span><span class="att-size">${size}</span></a>`;
+        }).join("")}</div>`
+      : "";
     return `<div class="msg ${isRocky ? "rocky" : "agent18"}">
       <span class="label">${isRocky ? "Rocky" : "Número 18"}</span>
-      <div class="bubble">${m.message.replace(/</g,"&lt;")}</div>
+      <div class="bubble">${esc(m.message)}</div>
+      ${atts}
       <span class="time">${fmt(m.timestamp)}</span>
     </div>`;
   }).join("");
@@ -156,17 +184,32 @@ function renderChat() {
 
 async function load() {
   try {
-    const r = await fetch(RAW + "?t=" + Date.now());
-    messages = await r.json();
+    const r = await fetch(BRIDGE + "?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    messages = [];
+    for (const t of (data.threads || [])) {
+      for (const m of (t.messages || [])) {
+        messages.push({
+          from: m.from_agent,
+          message: m.message,
+          thread_id: m.thread_id,
+          timestamp: m.created_at,
+          attachments: m.attachments || null,
+        });
+      }
+    }
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     document.getElementById("status").textContent = new Date().toLocaleTimeString("es-CO", {timeStyle:"short"});
     render();
   } catch(e) {
     document.getElementById("status").textContent = "error";
+    console.error(e);
   }
 }
 
 load();
-setInterval(load, 30000);
+setInterval(load, 15000);
 </script>
 </body>
 </html>
